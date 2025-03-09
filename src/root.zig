@@ -38,21 +38,28 @@ const Node = struct {
             return counter + 1;
         }
     }
+    fn destroy(self: *Node, allocator: std.mem.Allocator) void {
+        if (self.next) |next_node| {
+            next_node.destroy(allocator);
+        }
+        allocator.destroy(self);
+    }
 };
 
 const List = struct {
     first: ?*Node,
+    allocator: std.mem.Allocator,
 
     pub fn create(allocator: std.mem.Allocator) !*List {
         const list = try allocator.create(List);
-        list.* = List{ .first = null };
+        list.* = List{ .first = null, .allocator = allocator };
         return list;
     }
-    pub fn append(self: *List, allocator: std.mem.Allocator, value: i32) !void {
+    pub fn append(self: *List, value: i32) !void {
         if (self.first) |first_node| {
-            try first_node.append(allocator, value);
+            try first_node.append(self.allocator, value);
         } else {
-            self.first = try Node.create(allocator, value);
+            self.first = try Node.create(self.allocator, value);
         }
     }
     pub fn length(self: *List) u32 {
@@ -62,18 +69,24 @@ const List = struct {
             return 0;
         }
     }
+    pub fn destroy(self: *List) void {
+        if (self.first) |first_node| {
+            first_node.destroy(self.allocator);
+        }
+        self.allocator.destroy(self);
+    }
 };
 
 test "list append" {
-    var gpa = std.heap.page_allocator;
+    const gpa = std.heap.page_allocator;
 
     const list = try List.create(gpa);
-    try list.append(gpa, 2);
-    try list.append(gpa, 7);
-    try list.append(gpa, 9);
-    try list.append(gpa, 5);
+    try list.append(2);
+    try list.append(7);
+    try list.append(9);
+    try list.append(5);
 
-    defer gpa.destroy(list);
+    defer list.destroy();
 
     try testing.expect(list.length() == 4);
 }
