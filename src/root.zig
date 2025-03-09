@@ -39,10 +39,12 @@ const Node = struct {
         }
     }
     fn destroy(self: *Node, allocator: std.mem.Allocator) void {
-        if (self.next) |next_node| {
-            next_node.destroy(allocator);
+        var current: ?*Node = self;
+        while (current) |node| {
+            const next_node = node.next;
+            allocator.destroy(node);
+            current = next_node;
         }
-        allocator.destroy(self);
     }
 };
 
